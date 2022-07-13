@@ -21,6 +21,9 @@ class UserProcess(object):
     def get_status(self):
         return self._process.status()
 
+    def get_cpu_percent(self):
+        return f'{self._process.cpu_percent()}%'
+
     @property
     def identifier(self):
         return self._identifier
@@ -52,7 +55,7 @@ class UIManager:
 
         # Process List
         self.menu = self.master.add_scroll_menu(
-            "PID | Process | Status",
+            "PID | Process | Status | CPU",
             0, 0,
             row_span=7,
             column_span=5
@@ -110,7 +113,8 @@ class UIManager:
             try:
                 name = f'{proc.get_pid()} ' \
                        f'| {proc.cmd} ' \
-                       f'| {proc.get_status()}'
+                       f'| {proc.get_status()} ' \
+                       f'| {proc.get_cpu_percent()} '
                 self.menu.add_item(name)
 
                 identifier = UserProcess.compute_identifier(name)
