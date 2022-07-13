@@ -1,4 +1,7 @@
+from datetime import datetime
 from subprocess import PIPE, Popen
+import prettytable
+import psutil
 from psutil import Process, NoSuchProcess
 from py_cui import PyCUI
 from py_cui.keys import KEY_ENTER
@@ -49,10 +52,10 @@ class UIManager:
 
         # Process List
         self.menu = self.master.add_scroll_menu(
-            "Processes",
+            "PID | Process | Status",
             0, 0,
             row_span=7,
-            column_span=4
+            column_span=5
         )
 
         # Execute command
@@ -60,17 +63,34 @@ class UIManager:
             "Exec",
             7, 0,
             row_span=1,
-            column_span=4
+            column_span=5
         )
         self.command_block.add_key_command(KEY_ENTER, self.execute_command)
+        self.master.move_focus(self.command_block)
 
-        # Process Output
-        self.output = self.master.add_text_block(
-            "Output",
+        # Display system info
+        self.system_info = self.master.add_text_block(
+            "System Info",
             0, 5,
             row_span=9,
             column_span=4
         )
+        self.system_info.set_text(UIManager.display_system_info())
+
+    @staticmethod
+    def display_system_info():
+        memory = psutil.virtual_memory()
+        swap = psutil.swap_memory()
+        battery = psutil.sensors_battery().percent
+        uptime = psutil.boot_time()
+        uptime = datetime.fromtimestamp(psutil.boot_time()).strftime("%H:%M:%S")
+        return f'\nUpTime [ {uptime} ] \t Battery [ {round(battery)}% ]\n\n' \
+               f'\n[ Memory ]\n\n => Total: {UIManager.bytes_to_gb(memory.total)} | Free: {UIManager.bytes_to_gb(memory.inactive)} | Used: {UIManager.bytes_to_gb(memory.used)} | {round(memory.percent)}%\n\n' \
+               f'\n[ Swap Memory ]\n\n => Total: {UIManager.bytes_to_gb(swap.total)} | Free: {UIManager.bytes_to_gb(swap.free)} | Used: {UIManager.bytes_to_gb(swap.used)} | {round(swap.percent)}%\n\n'
+
+    @staticmethod
+    def bytes_to_gb(bytes_size: int) -> float:
+        return round(bytes_size / 1000000000, 1)
 
     def start(self):
         self.master.start()
@@ -88,9 +108,9 @@ class UIManager:
         refresh = []
         for proc in self.process_list:
             try:
-                name = f'{proc.cmd} ' \
-                       f'- {proc.get_status()} -' \
-                       f' {proc.get_pid()} '
+                name = f'{proc.get_pid()} ' \
+                       f'| {proc.cmd} ' \
+                       f'| {proc.get_status()}'
                 self.menu.add_item(name)
 
                 identifier = UserProcess.compute_identifier(name)
