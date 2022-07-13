@@ -1,15 +1,16 @@
 from subprocess import PIPE, Popen
 
-import psutil
-from psutil import Process
+import py_cui.colors
+from psutil import Process, NoSuchProcess
 from py_cui import PyCUI
 from py_cui.keys import KEY_ENTER
 
 
 class UserProcess(object):
     def __init__(self, pid):
+        self._text = None
         self._process = Process(pid)
-        self.name = ' '.join(self._process.cmdline())
+        self._name = ' '.join(self._process.cmdline())
 
     def get_pid(self):
         return str(self._process.pid)
@@ -19,7 +20,15 @@ class UserProcess(object):
 
     @property
     def get_name(self):
-        return self.name
+        return self._name
+
+    @property
+    def text(self):
+        return self._text
+
+    @text.setter
+    def text(self, text):
+        self._text = text
 
 
 class UIManager:
@@ -39,6 +48,7 @@ class UIManager:
             row_span=7,
             column_span=4
         )
+        self.menu.add_key_command(KEY_ENTER, self.display_output)
 
         # Execute command
         self.command_block = master.add_text_box(
@@ -60,6 +70,17 @@ class UIManager:
     def start(self):
         self.master.start()
 
+    def display_output(self):
+        selected = self.menu.get()
+        if selected is None:
+            return
+
+        proc = None
+        for process in self.proc_list:
+            if selected.__eq__(process.get_name):
+                self.output.set_text(selected.text)
+                break
+
     def check_processes_status(self):
         if not self.proc_list:
             return
@@ -75,7 +96,7 @@ class UIManager:
                     + " --- " +
                     self.proc_list[i].get_pid())
                 refresh.append(self.proc_list[i])
-            except psutil.NoSuchProcess:
+            except NoSuchProcess:
                 pass
         self.proc_list = refresh
 
@@ -84,8 +105,13 @@ class UIManager:
         if command == "":
             return
         proc = Popen(command, stdout=PIPE, stderr=PIPE, text=True, shell=True)
+        wrap_proc = UserProcess(proc.pid)
+        if proc.returncode == 0:
+            wrap_proc.text = proc.stdout.readlines()
+
+
         # Add new process to list
-        self.proc_list.append(UserProcess(proc.pid))
+        self.proc_list.append(wrap_proc)
         # Check processes status
         self.check_processes_status()
         # Refresh process list
