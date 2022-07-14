@@ -1,6 +1,6 @@
 from datetime import datetime
 from subprocess import PIPE, Popen
-import prettytable
+import time
 import psutil
 from psutil import Process, NoSuchProcess
 from py_cui import PyCUI
@@ -78,21 +78,26 @@ class UIManager:
             row_span=9,
             column_span=4
         )
-        self.system_info.set_text(UIManager.display_system_info())
 
-    @staticmethod
-    def display_system_info():
+        # Refresh UI
+        self.master.set_refresh_timeout(1)
+        self.master.set_on_draw_update_func(self.update_ui)
+
+    def update_ui(self):
+        self.system_info.clear()
+        self.system_info.set_text(self.display_system_info())
+        self.check_processes_status()
+
+    def display_system_info(self):
         memory = psutil.virtual_memory()
         swap = psutil.swap_memory()
         battery = psutil.sensors_battery().percent
-        uptime = psutil.boot_time()
-        uptime = datetime.fromtimestamp(psutil.boot_time()).strftime("%H:%M:%S")
-        return f'\nUpTime [ {uptime} ] \t Battery [ {round(battery)}% ]\n\n' \
-               f'\n[ Memory ]\n\n => Total: {UIManager.bytes_to_gb(memory.total)} | Free: {UIManager.bytes_to_gb(memory.inactive)} | Used: {UIManager.bytes_to_gb(memory.used)} | {round(memory.percent)}%\n\n' \
-               f'\n[ Swap Memory ]\n\n => Total: {UIManager.bytes_to_gb(swap.total)} | Free: {UIManager.bytes_to_gb(swap.free)} | Used: {UIManager.bytes_to_gb(swap.used)} | {round(swap.percent)}%\n\n'
+        sys_uptime = datetime.fromtimestamp(time.time() - psutil.boot_time()).strftime("%H:%M:%S")
+        return f'\nUpTime [ {sys_uptime} ] \t Battery [ {round(battery)}% ]\n\n' \
+               f'\n[ Memory ]\n\n => Total: {self.bytes_to_gb(memory.total)} | Free: {self.bytes_to_gb(memory.inactive)} | Used: {self.bytes_to_gb(memory.used)} | {round(memory.percent)}%\n\n' \
+               f'\n[ Swap Memory ]\n\n => Total: {self.bytes_to_gb(swap.total)} | Free: {self.bytes_to_gb(swap.free)} | Used: {self.bytes_to_gb(swap.used)} | {round(swap.percent)}%\n\n'
 
-    @staticmethod
-    def bytes_to_gb(bytes_size: int) -> float:
+    def bytes_to_gb(self, bytes_size: int) -> float:
         return round(bytes_size / 1000000000, 1)
 
     def start(self):
@@ -138,7 +143,7 @@ class UIManager:
         # Add process management list
         self.process_list.append(user_process)
         # Refresh process list
-        self.check_processes_status()
+        # self.check_processes_status()
         # Clear command box
         self.command_block.clear()
 
